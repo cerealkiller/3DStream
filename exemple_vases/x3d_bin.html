@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<script type="text/javascript" src="js/x3dom_beautified.js"></script>
+<title>Techniques AJAX - XMLHttpRequest</title>
+<script type="text/javascript">
+
+function getXMLHttpRequest() {
+	var xhr = null;
+	
+	if (window.XMLHttpRequest || window.ActiveXObject) {
+		if (window.ActiveXObject) {
+			try {
+				xhr = new ActiveXObject("Msxml2.XMLHTTP");
+			} catch(e) {
+				xhr = new ActiveXObject("Microsoft.XMLHTTP");
+			}
+		} else {
+			xhr = new XMLHttpRequest(); 
+		}
+	} else {
+		alert("Votre navigateur ne supporte pas l'objet XMLHTTPRequest...");
+		return null;
+	}
+	
+	return xhr;
+}
+
+function request(callback, action, name) {
+	var xhr = getXMLHttpRequest();
+	
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState == 4 && (xhr.status == 200 || xhr.status == 0)) {
+			//alert(xhr.responseText);	//for debug
+			callback(xhr.responseXML, action);
+		}
+	};
+	name = encodeURIComponent(name);
+	action = encodeURIComponent(action);
+	xhr.open("POST", "load_model_bin.php", true);
+	xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	xhr.send("action=" + action + "&name=" + name);
+}
+
+function readData(sData, action) {
+	var item = sData.getElementsByTagName("item");
+	switch(action) {
+		case "master":
+			var pk, nb_div;
+			for(var i=0; i<item.length; i++) {
+				pk = item[i].getAttribute("pk");
+				nb_div = item[i].getAttribute("nb_div");
+				//alert(pk+" "+nb_div);
+			}
+			request(readData,"div",pk);
+			//alert("fin master");
+			break;
+		case "div":
+			var pk_div, nb_vert, nb_face, lod;
+			//var i =0;
+			for(var i=0; i<item.length; i++) {
+				pk_div = item[i].getAttribute("pk");
+				nb_vert = item[i].getAttribute("vert");
+				nb_face= item[i].getAttribute("face");
+				lod = item[i].getAttribute("lod");
+				//alert(pk_div+" "+nb_vert+" "+nb_face+" "+lod);
+				request(readData,"vertex",pk_div);
+				//alert("fin div"+i);
+			}
+			break;
+		case "vertex":
+			var pos = sData.getElementsByTagName("pos"); 
+			var face = sData.getElementsByTagName("face");
+			var color = sData.getElementsByTagName("color");
+			//var regexp = \^((\d+\s){3})\;
+			for(var i=0; i<face.length;i++) {
+				
+				var rc =  document.getElementById(i);
+				var t = document.createElement('Transform');
+				t.setAttribute("translation", "0 0 0");
+				t.setAttribute("id", i);
+				var ot = document.getElementById('root');
+				if(rc) ot.removeChild(rc);
+				ot.appendChild(t);
+				
+				add_piece(i, face[i].getAttribute("f"), pos[i].getAttribute("p"), color[i].getAttribute("c"));
+				//var toto = parseInt(document.getElementById("texte").innerHTML);
+				//document.getElementById("texte").innerHTML = toto+1;
+			}
+			break;
+		default:
+			break;
+	}
+}
+
+function removePiece() {
+	var ot = document.getElementById('root');
+	//alert(ot.innerHTML);
+	for (var i = 0; i < ot.childNodes.length; i++) {
+		// check if we have a real X3DOM Node; not just e.g. a Text-tag
+		if (ot.childNodes[i].nodeType === Node.ELEMENT_NODE) {
+			//alert(ot.childNodes[i].innerHTML);
+			ot.removeChild(ot.childNodes[i]);
+			//document.getElementById("texte").innerHTML = parseInt(document.getElementById("texte").innerHTML)-1;
+				break;
+			}
+		}
+	return false;
+}
+
+function add_piece(id, faces, vertex, color) {
+	//removePiece();
+	//var t = document.createElement('Transform');
+	//t.setAttribute("translation", "0 0 0");
+	var s = document.createElement('Shape');
+	//t.appendChild(s);
+	var index = document.createElement('Indexedfaceset');
+	index.setAttribute("solid", "false");
+	index.setAttribute("coordindex", faces);
+	var coord = document.createElement('Coordinate');
+	coord.setAttribute("point", vertex);
+	index.appendChild(coord);
+	var colors = document.createElement('Color');
+	colors.setAttribute("color", color);
+	index.appendChild(colors);
+	s.appendChild(index);
+	var ot = document.getElementById(id);
+	ot.appendChild(s);
+	return false;
+}
+
+/*window.onload = function() {
+	test();
+	//request(readData, "master", "A318_poisson_frag");
+};*/
+
+</script>
+</head>
+<body>
+	<h1>Test</h1>
+	<div id="toto">
+	<x3d id="main_x3d" showstat="false" showlog="false" width="500px" height="500px" altImg="" xmlns="http://www.web3d.org/specifications/x3d-namespace">
+	<scene>
+		<viewpoint position="0 0 500"></viewpoint>
+		<background skycolor="0.4 0.4 0.5"></background>
+		<transform id="root" translation="0 0 0">
+		</transform>
+	</scene>
+	</x3d>
+	</div>
+	
+	<p>
+	<input type="button" onclick="request(readData, 'master', 'A318_poisson_bin');" value="Add" />
+	<input type="button" onclick="removePiece();" value="Remove" />
+	</p>
+
+</body>
+</html>
